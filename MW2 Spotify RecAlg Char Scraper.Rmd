@@ -1,0 +1,166 @@
+---
+title: "RecAlgorithmCharScrape"
+author: "Edward Shiang"
+date: "2/14/2019"
+output: html_document
+---
+
+1) Scraping the Characteristics
+```{r}
+library(rvest)
+library(stringr)
+
+#FUNCTION getQualityDF
+#PARAMETERS:  num (the corresponding number for the list of recommendation characteristics, arranged alphabetically (1 for "Acousticness", 2 for "Danceability", etc.)), allQualDF (a dataframe with the extracted text for )
+#DESCRIPTION: constructs and returns a 1 column dataframe containing every value on a given daily chart corresponding to the num value
+getQualityDF <- function(num, allQualDF)
+{
+matches <- str_match_all(allQualDF$., paste0(switch(num, "Acousticness", "Danceability", "Energy", "Instrumentalness", "Liveness", "Speechiness", "Valence"), "\\s([:digit:]+)%"))
+
+qualityDF <- rep(NA, 200) %>% as.data.frame
+for(i in 1:length(matches))
+{
+  if(length(matches[[i]][,2]) != 0)
+  {
+   qualityDF[i,1] <- matches[[i]][,2] %>% as.numeric
+  }
+}
+return(qualityDF)
+}
+
+
+#FUNCTION getQualitiesDF
+#PARAMETER: dateURL (a character string of the particular URL for a Spotify chart on SpotOn's website)
+#DESCRIPTION: constructs and returns the final dataframe containing every recommendation characteristic and all its values on the chart
+getQualitiesDF <- function(dateURL) 
+{
+  spotOnURL <- read_html(dateURL)
+  allQualities <- html_nodes(spotOnURL, ".tooltips")
+  allQualDF <- html_attr(allQualities, "data-original-title") %>% as.data.frame 
+  
+  finalDF <- matrix(ncol = 7, nrow = 200) %>% as.data.frame
+  for(i in 1:7)
+  {
+    finalDF[i] <- getQualityDF(i, allQualDF)
+    names(finalDF)[i] <- paste0(switch(i, "Acousticness", "Danceability", "Energy", "Instrumentalness", "Liveness", "Speechiness", "Valence"))
+  }
+  return(na.omit(finalDF))
+}
+
+```
+
+```{r}
+library(corrplot)
+library(GGally)
+sum15url <- "https://www.spotontrack.com/charts/daily/streams/us/2015-08-31"
+sum16url <- "https://www.spotontrack.com/charts/daily/streams/us/2016-08-31"
+sum17url <- "https://www.spotontrack.com/charts/daily/streams/us/2017-08-31"
+sum18url <- "https://www.spotontrack.com/charts/daily/streams/us/2018-08-31"
+
+
+sum15finalDF <- getQualitiesDF(sum15url)
+sum16finalDF <- getQualitiesDF(sum16url)
+sum17finalDF <- getQualitiesDF(sum17url)
+sum18finalDF <- getQualitiesDF(sum18url)
+```
+
+
+```{r}
+totDF <- rbind(sum15finalDF, sum16finalDF, sum17finalDF, sum18finalDF)
+c1.1 <- corrplot(cor(totDF), order="hclust", tl.col="black", type = "upper")
+
+```
+
+
+```{r}
+ggcorr(cor(totDF), nbreaks=8, size = 3, palette='RdBu', label=TRUE, label_size=5, label_color='white') 
+
+```
+
+
+
+```{r}
+acoustic <- data.frame(y15 = sum15finalDF$Acousticness, y16 = sum16finalDF$Acousticness, y17 = sum17finalDF$Acousticness)
+
+require(gridExtra)
+ac15 <- ggplot(acoustic, aes(x=y15))+
+  geom_histogram(fill="white", color = "red", alpha =.5) + xlim(c(0,110)) + ylim(c(0,60)) 
+ac16 <- ggplot(acoustic, aes(x=y16)) +
+  geom_histogram(fill="white", color = "orange", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,60))
+ac17 <- ggplot(acoustic, aes(x=y17)) +
+  geom_histogram(fill="white", color = "blue", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,60))
+ac18 <- ggplot(sum18finalDF, aes(x=Acousticness)) +
+  geom_histogram(fill="white", color = "purple", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,60))
+
+grid.arrange(ac15, ac16, ac17, ac18, ncol=4)
+```
+
+```{r}
+dance <- data.frame(y15 = sum15finalDF$Danceability, y16 = sum16finalDF$Danceability, y17 = sum17finalDF$Danceability)
+
+require(gridExtra)
+dc15 <- ggplot(dance, aes(x=y15))+
+  geom_histogram(fill="white", color = "red", alpha =.5) + xlim(c(0,110)) + ylim(c(0,40)) 
+dc16 <- ggplot(dance, aes(x=y16)) +
+  geom_histogram(fill="white", color = "orange", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,40))
+dc17 <- ggplot(dance, aes(x=y17)) +
+  geom_histogram(fill="white", color = "blue", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,40))
+dc18 <- ggplot(sum18finalDF, aes(x=Danceability)) +
+  geom_histogram(fill="white", color = "purple", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,40))
+
+grid.arrange(dc15, dc16, dc17, dc18, ncol=4)
+
+```
+
+```{r}
+dance <- data.frame(y15 = sum15finalDF$Danceability, y16 = sum16finalDF$Danceability, y17 = sum17finalDF$Danceability)
+
+require(gridExtra)
+dc15 <- ggplot(dance, aes(x=y15))+
+  geom_histogram(fill="white", color = "red", alpha =.5) + xlim(c(0,110)) + ylim(c(0,40)) 
+dc16 <- ggplot(dance, aes(x=y16)) +
+  geom_histogram(fill="white", color = "orange", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,40))
+dc17 <- ggplot(dance, aes(x=y17)) +
+  geom_histogram(fill="white", color = "blue", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,40))
+dc18 <- ggplot(sum18finalDF, aes(x=Danceability)) +
+  geom_histogram(fill="white", color = "purple", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,40))
+
+grid.arrange(dc15, dc16, dc17, dc18, ncol=4)
+
+```
+
+
+```{r}
+speech <- data.frame(y15 = sum15finalDF$Speechiness, y16 = sum16finalDF$Speechiness, y17 = sum17finalDF$Speechiness, y18 = rbind(sum18finalDF$Speechiness, rep(NA, 2)))
+
+require(gridExtra)
+sp15 <- ggplot(speech, aes(x=y15))+
+  geom_histogram(fill="white", color = "red", alpha =.5) + xlim(c(0,110)) + ylim(c(0,60)) 
+sp16 <- ggplot(speech, aes(x=y16)) +
+  geom_histogram(fill="white", color = "orange", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,60))
+sp17 <- ggplot(speech, aes(x=y17)) +
+  geom_histogram(fill="white", color = "blue", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,60))
+sp18 <- ggplot(sum18finalDF, aes(x=Speechiness)) +
+  geom_histogram(fill="white", color = "purple", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,60))
+
+grid.arrange(sp15, sp16, sp17, sp18, ncol=4)
+
+```
+
+```{r}
+valence <- data.frame(y15 = sum15finalDF$Valence, y16 = sum16finalDF$Valence, y17 = sum17finalDF$Valence, y18 = rbind(sum18finalDF$Valence, rep(NA, 2)))
+
+require(gridExtra)
+vl15 <- ggplot(valence, aes(x=y15))+
+  geom_histogram(fill="white", color = "red", alpha =.5) + xlim(c(0,110)) + ylim(c(0,30)) 
+vl16 <- ggplot(valence, aes(x=y16)) +
+  geom_histogram(fill="white", color = "orange", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,30))
+vl17 <- ggplot(valence, aes(x=y17)) +
+  geom_histogram(fill="white", color = "blue", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,30))
+vl18 <- ggplot(sum18finalDF, aes(x=Valence)) +
+  geom_histogram(fill="white", color = "purple", alpha=0.5, position="identity") + xlim(c(0,110)) + ylim(c(0,30))
+
+grid.arrange(vl15, vl16, vl17, vl18, ncol=4)
+
+
+```
